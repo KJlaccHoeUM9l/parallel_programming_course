@@ -1,5 +1,4 @@
 // Copyright 2019 Gladyshev Alexey
-#include <omp.h>
 #include <stdlib.h>
 #include <iostream>
 #include <ctime>
@@ -23,20 +22,16 @@ int main() {
     float* kernel = createGaussianKernel(radius, sigma);
     myColor* sourceArrayImage = new myColor[width * height];
     myColor* resultArrayImage = new myColor[width * height];
-    double start, linearTotal;
 
     createRandomPicture(sourceArrayImage, width, height);
 
-    start = omp_get_wtime();
     processImage(sourceArrayImage, resultArrayImage,
                  width, height, kernel, radius);
-    linearTotal = omp_get_wtime() - start;
 
     std::cout << std::endl << "(width, height) = (";
     std::cout << width << ", " << height << ")";
     std::cout << std::endl << "Kernel radius =    " << radius;
-    std::cout << std::endl << "Filtering (non-parallel):       ";
-    std::cout << linearTotal * 1000 << " (ms)" << std::endl;
+    std::cout << std::endl << "Finish success" << std::endl;
 
     delete[]sourceArrayImage;
     delete[]resultArrayImage;
