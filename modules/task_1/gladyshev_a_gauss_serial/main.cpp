@@ -1,9 +1,8 @@
 // Copyright 2019 Gladyshev Alexey
-#include <iostream>
-#include <random>
 #include <omp.h>
+#include <stdlib.h>
+#include <iostream>
 #include <ctime>
-using namespace std;
 
 typedef struct { int r; int g; int b; } color;
 typedef struct { int x; int y; } point;
@@ -31,9 +30,9 @@ int main() {
     processImage(sourceArrayImage, resultArrayImage, width, height, kernel, radius);
     linearTotal = omp_get_wtime() - start;
 
-    cout << endl << "(width, height) = (" << width << ", " << height << ")";
-    cout << endl << "Kernel radius =    " << radius;
-    cout << endl << "Filtering (non-parallel):       " << linearTotal * 1000 << " (ms)" << endl;
+    std::cout << std::endl << "(width, height) = (" << width << ", " << height << ")";
+    std::cout << std::endl << "Kernel radius =    " << radius;
+    std::cout << std::endl << "Filtering (non-parallel):       " << linearTotal * 1000 << " (ms)" << std::endl;
 
     delete[]sourceArrayImage;
     delete[]resultArrayImage;
@@ -54,9 +53,8 @@ float* createGaussianKernel(int radius, float sigma) {
     float norm = 0;
 
     for (int i = -radius; i <= radius; i++)
-        for (int j = -radius; j <= radius; j++)
-        {
-            kernel[(i + radius) * size + (j + radius)] = (float)(exp(-(i * i + j * j) / (sigma * sigma)));
+        for (int j = -radius; j <= radius; j++) {
+            kernel[(i + radius) * size + (j + radius)] = static_cast<float>((exp(-(i * i + j * j) / (sigma * sigma))));
             norm += kernel[(i + radius) * size + (j + radius)];
         }
 
@@ -86,9 +84,9 @@ color calculateNewPixelColor(color* sourceImage, int width, int height, float* k
     }
 
     color result;
-    result.r = clamp((int)resultR, 0, 255);
-    result.g = clamp((int)resultG, 0, 255);
-    result.b = clamp((int)resultB, 0, 255);
+    result.r = clamp(static_cast<int>(resultR), 0, 255);
+    result.g = clamp(static_cast<int>(resultG), 0, 255);
+    result.b = clamp(static_cast<int>(resultB), 0, 255);
     return result;
 }
 
@@ -101,8 +99,8 @@ void processImage(color* sourceImage, color* resultImage, int width, int height,
 void createRandomPicture(color* arrayImage, int width, int height) {
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++) {
-            arrayImage[i * width + j].r = rand() % 256;
-            arrayImage[i * width + j].g = rand() % 256;
-            arrayImage[i * width + j].b = rand() % 256;
+            arrayImage[i * width + j].r = std::rand() % 256;
+            arrayImage[i * width + j].g = std::rand() % 256;
+            arrayImage[i * width + j].b = std::rand() % 256;
         }
 }
