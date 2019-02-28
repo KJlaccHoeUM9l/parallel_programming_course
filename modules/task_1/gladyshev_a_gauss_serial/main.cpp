@@ -5,17 +5,15 @@
 #include <ctime>
 #include <cmath>
 
-typedef struct { int r; int g; int b; } color;
-typedef struct { int x; int y; } point;
-typedef struct { point start; point finish; } index;
+typedef struct { int r; int g; int b; } myColor;
 
 int clamp(int value, int min, int max);
 float* createGaussianKernel(int radius, float sigma);
-color calculateNewPixelColor(color* sourceImage, int width, int height,
+myColor calculateNewPixelColor(myColor* sourceImage, int width, int height,
                              float* kernel, int radius, int i, int j);
-void processImage(color* sourceImage, color* resultImage, int width,
+void processImage(myColor* sourceImage, myColor* resultImage, int width,
                   int height, float* kernel, int kernelRadius);
-void createRandomPicture(color* arrayImage, int width, int height);
+void createRandomPicture(myColor* arrayImage, int width, int height);
 
 int main() {
     srand(static_cast<unsigned int>(time(NULL)));
@@ -23,8 +21,8 @@ int main() {
     int radius = 1;
     float sigma = 6;
     float* kernel = createGaussianKernel(radius, sigma);
-    color* sourceArrayImage = new color[width * height];
-    color* resultArrayImage = new color[width * height];
+    myColor* sourceArrayImage = new myColor[width * height];
+    myColor* resultArrayImage = new myColor[width * height];
     double start, linearTotal;
 
     createRandomPicture(sourceArrayImage, width, height);
@@ -73,7 +71,7 @@ float* createGaussianKernel(int radius, float sigma) {
     return kernel;
 }
 
-color calculateNewPixelColor(color* sourceImage, int width, int height,
+myColor calculateNewPixelColor(myColor* sourceImage, int width, int height,
                              float* kernel, int radius, int i, int j) {
     float resultR = 0;
     float resultG = 0;
@@ -84,7 +82,7 @@ color calculateNewPixelColor(color* sourceImage, int width, int height,
             int idX = clamp(i + l, 0, height - 1);
             int idY = clamp(j + k, 0, width - 1);
 
-            color neighborColor = sourceImage[idX * width + idY];
+            myColor neighborColor = sourceImage[idX * width + idY];
 
             resultR += neighborColor.r *
                 kernel[(k + radius) * radius + (l + radius)];
@@ -95,14 +93,14 @@ color calculateNewPixelColor(color* sourceImage, int width, int height,
         }
     }
 
-    color result;
+    myColor result;
     result.r = clamp(static_cast<int>(resultR), 0, 255);
     result.g = clamp(static_cast<int>(resultG), 0, 255);
     result.b = clamp(static_cast<int>(resultB), 0, 255);
     return result;
 }
 
-void processImage(color* sourceImage, color* resultImage, int width,
+void processImage(myColor* sourceImage, myColor* resultImage, int width,
                   int height, float* kernel, int kernelRadius) {
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++)
@@ -111,7 +109,7 @@ void processImage(color* sourceImage, color* resultImage, int width,
                                        kernel, kernelRadius, i, j);
 }
 
-void createRandomPicture(color* arrayImage, int width, int height) {
+void createRandomPicture(myColor* arrayImage, int width, int height) {
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++) {
             arrayImage[i * width + j].r = std::rand() % 256;
