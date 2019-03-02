@@ -29,7 +29,7 @@ int main() {
     int threads = 4;
     double start, ompTotal;
     float* kernel = createGaussianKernel(radius, sigma);
-    
+
     myColor* sourceArrayImage = new myColor[width * height];
     myColor* ompResultArrayImage = new myColor[width * height];
     createRandomPicture(sourceArrayImage, width, height);
@@ -37,15 +37,18 @@ int main() {
     omp_set_num_threads(threads);
     myIndex* indexArray = new myIndex[threads];
     getIndexes(indexArray, width, height, threads);
-    
+
     start = omp_get_wtime();
-    ompProcessImage_block(sourceArrayImage, ompResultArrayImage, width, height, kernel, radius, indexArray);
+    ompProcessImage_block(sourceArrayImage, ompResultArrayImage,
+                          width, height, kernel, radius, indexArray);
     ompTotal = omp_get_wtime() - start;
 
-    std::cout << std::endl << "(width, height): (" << width << ", " << height << ")";
+    std::cout << std::endl << "(width, height): (" << width << ", ";
+    std::cout << height << ")";
     std::cout << std::endl << "Threads:              " << threads;
     std::cout << std::endl << "Kernel radius:        " << radius;
-    std::cout << std::endl << "Filtering time:       " << ompTotal * 1000 << " (ms)" << std::endl;
+    std::cout << std::endl << "Filtering time:       " << ompTotal * 1000;
+    std::cout << " (ms)" << std::endl;
 
     delete[]sourceArrayImage;
     delete[]ompResultArrayImage;
@@ -180,8 +183,8 @@ void getIndexes(myIndex* indexArray, int width, int height, int threads) {
     delete[]widthLength;
 }
 
-void ompProcessImage_block(myColor* sourceImage, myColor* resultImage, 
-                           int width, int height, float* kernel, 
+void ompProcessImage_block(myColor* sourceImage, myColor* resultImage,
+                           int width, int height, float* kernel,
                            int kernelRadius, myIndex* indexArray) {
 #pragma omp parallel
         {
@@ -193,7 +196,7 @@ void ompProcessImage_block(myColor* sourceImage, myColor* resultImage,
 
             for (int i = startHeight; i < finishHeight; i++)
                 for (int j = startWidth; j < finishWidth; j++)
-                    resultImage[i * width + j] = 
+                    resultImage[i * width + j] =
                         calculateNewPixelColor(sourceImage, width, height,
                                                kernel, kernelRadius, i, j);
         }
