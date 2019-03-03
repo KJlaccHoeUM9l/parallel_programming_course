@@ -20,6 +20,9 @@ int* getLength(int length, int qElements);
 void getIndexes(myIndex* indexArray, int width, int height, int threads);
 void ompProcessImage_block(myColor* sourceImage, myColor* resultImage,
   int width, int height, float* kernel, int kernelRadius, myIndex* indexArray);
+// Serial version
+void processImage(myColor* sourceImage, myColor* resultImage, int width,
+    int height, float* kernel, int kernelRadius);
 
 int main() {
     srand(static_cast<unsigned int>(time(NULL)));
@@ -27,13 +30,15 @@ int main() {
     int radius = 1;
     float sigma = 6;
     int threads = 4;
-    double start, ompTotal;
+    double start, ompTotal, serialTotal;
     float* kernel = createGaussianKernel(radius, sigma);
 
     myColor* sourceArrayImage = new myColor[width * height];
     myColor* ompResultArrayImage = new myColor[width * height];
+    myColor* serialResultArrayImage = new myColor[width * height];
     createRandomPicture(sourceArrayImage, width, height);
 
+    // Parallel version
     omp_set_num_threads(threads);
     myIndex* indexArray = new myIndex[threads];
     getIndexes(indexArray, width, height, threads);
@@ -43,15 +48,26 @@ int main() {
                           width, height, kernel, radius, indexArray);
     ompTotal = omp_get_wtime() - start;
 
+    // Serial version
+    start = omp_get_wtime();
+    processImage(sourceArrayImage, ompResultArrayImage,
+                 width, height, kernel, radius);
+    serialTotal = omp_get_wtime() - start;
+
     std::cout << std::endl << "(width, height): (" << width << ", ";
     std::cout << height << ")";
-    std::cout << std::endl << "Threads:              " << threads;
-    std::cout << std::endl << "Kernel radius:        " << radius;
-    std::cout << std::endl << "Filtering time:       " << ompTotal * 1000;
-    std::cout << " (ms)" << std::endl;
+    std::cout << std::endl << "Threads:                " << threads;
+    std::cout << std::endl << "Kernel radius:          " << radius;
+    std::cout << std::endl << "Filtering time(paral) : " << ompTotal * 1000;
+    std::cout << " (ms)";
+    std::cout << std::endl << "Filtering time(serial): " << serialTotal * 1000;
+    std::cout << " (ms)";
+    std::cout << std::endl << "Acceleration:           ";
+    std::cout << serialTotal / ompTotal << std::endl;
 
     delete[]sourceArrayImage;
     delete[]ompResultArrayImage;
+    delete[]serialResultArrayImage;
     delete[]kernel;
     delete[]indexArray;
 
@@ -200,4 +216,14 @@ void ompProcessImage_block(myColor* sourceImage, myColor* resultImage,
                         calculateNewPixelColor(sourceImage, width, height,
                                                kernel, kernelRadius, i, j);
         }
+}
+
+// Serial version
+void processImage(myColor* sourceImage, myColor* resultImage, int width,
+    int height, float* kernel, int kernelRadius) {
+    for (int i = 0; i < height; i++)
+        for (int j = 0; j < width; j++)
+            resultImage[i * width + j] =
+            calculateNewPixelColor(sourceImage, width, height,
+                kernel, kernelRadius, i, j);
 }
