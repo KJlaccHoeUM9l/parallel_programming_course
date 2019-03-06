@@ -142,8 +142,8 @@ myPoint getDecomposition(int n) {
     while (n % m != 0) m--;
     k = n / m;
 
-    result.x = max(k, m);
-    result.y = min(k, m);
+    result.x = (k > m) ? k : m;
+    result.y = (k < m) ? k : m;
     return result;
 }
 
