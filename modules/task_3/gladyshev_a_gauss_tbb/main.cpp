@@ -1,5 +1,5 @@
 // Copyright 2019 Gladyshev Alexey
-#include <omp.h>
+#include <tbb/tbb.h>
 #include <stdlib.h>
 #include <iostream>
 #include <ctime>
@@ -8,7 +8,6 @@
 
 typedef struct { int r; int g; int b; } myColor;
 typedef struct { int x; int y; } myPoint;
-typedef struct { myPoint start; myPoint finish; } myIndex;
 
 int clamp(int value, int min, int max);
 float* createGaussianKernel(int radius, float sigma);
@@ -16,60 +15,52 @@ myColor calculateNewPixelColor(myColor* sourceImage, int width, int height,
                              float* kernel, int radius, int i, int j);
 void createRandomPicture(myColor* arrayImage, int width, int height);
 myPoint getDecomposition(int n);
-int* getLength(int length, int qElements);
-void getIndexes(myIndex* indexArray, int width, int height, int threads);
-void ompProcessImage_block(myColor* sourceImage, myColor* resultImage,
-  int width, int height, float* kernel, int kernelRadius, myIndex* indexArray);
 // Serial version
 void processImage(myColor* sourceImage, myColor* resultImage, int width,
     int height, float* kernel, int kernelRadius);
+void tbbProcessImage(myColor* sourceImage, myColor* resultImage, int width,
+    int height, float* kernel, int kernelRadius, int threads);
 
 int main() {
     srand(static_cast<unsigned int>(time(NULL)));
-    int width = 312, height = 496;
+    int width = 3123, height = 4967;
     int radius = 1;
     float sigma = 6;
     int threads = 4;
-    double start, ompTotal, serialTotal;
+    double serialTotal, tbbTotal;
     float* kernel = createGaussianKernel(radius, sigma);
 
     myColor* sourceArrayImage = new myColor[width * height];
-    myColor* ompResultArrayImage = new myColor[width * height];
     myColor* serialResultArrayImage = new myColor[width * height];
+    myColor* tbbResultArrayImage = new myColor[width * height];
     createRandomPicture(sourceArrayImage, width, height);
 
-    // Parallel version
-    omp_set_num_threads(threads);
-    myIndex* indexArray = new myIndex[threads];
-    getIndexes(indexArray, width, height, threads);
+    // tbb version
+    tbb::task_scheduler_init init(threads);
+    tbb::tick_count tbbStart = tbb::tick_count::now();
+    tbbProcessImage(sourceArrayImage, tbbResultArrayImage,
+        width, height, kernel, radius, threads);
+    tbbTotal = (tbb::tick_count::now() - tbbStart).seconds();
+    init.terminate();
 
-    start = omp_get_wtime();
-    ompProcessImage_block(sourceArrayImage, ompResultArrayImage,
-                          width, height, kernel, radius, indexArray);
-    ompTotal = omp_get_wtime() - start;
-
-    // Serial version
-    start = omp_get_wtime();
-    processImage(sourceArrayImage, ompResultArrayImage,
-                 width, height, kernel, radius);
-    serialTotal = omp_get_wtime() - start;
+    // serial version
+    tbb::tick_count start = tbb::tick_count::now();
+    processImage(sourceArrayImage, serialResultArrayImage,
+        width, height, kernel, radius);
+    serialTotal = (tbb::tick_count::now() - start).seconds();
 
     std::cout << std::endl << "(width, height): (" << width << ", ";
     std::cout << height << ")";
     std::cout << std::endl << "Threads:                " << threads;
     std::cout << std::endl << "Kernel radius:          " << radius;
-    std::cout << std::endl << "Filtering time(paral) : " << ompTotal * 1000;
-    std::cout << " (ms)";
-    std::cout << std::endl << "Filtering time(serial): " << serialTotal * 1000;
-    std::cout << " (ms)";
-    std::cout << std::endl << "Acceleration:           ";
-    std::cout << serialTotal / ompTotal << std::endl;
+    std::cout << std::endl << "Filtering time(serial): " << serialTotal * 1000 << " (ms)";
+    std::cout << std::endl << "Filtering time(tbb)   : " << tbbTotal * 1000 << " (ms)";
+    std::cout << std::endl << "Acceleration(tbb)     : " << serialTotal / tbbTotal << std::endl;
 
     delete[]sourceArrayImage;
-    delete[]ompResultArrayImage;
+    delete[]tbbResultArrayImage;
     delete[]serialResultArrayImage;
     delete[]kernel;
-    delete[]indexArray;
 
     return 0;
 }
@@ -148,74 +139,9 @@ myPoint getDecomposition(int n) {
     while (n % m != 0) m--;
     k = n / m;
 
-    result.x = std::max(k, m);
-    result.y = std::min(k, m);
+    result.x = max(k, m);
+    result.y = min(k, m);
     return result;
-}
-
-int* getLength(int length, int qElements) {
-    int eachLength = length / qElements;
-    int tailLength = length % qElements;
-    int* lengthArray = new int[qElements];
-
-    for (int i = 0; i < qElements; i++)
-        lengthArray[i] = eachLength;
-
-    int i = 0;
-    while (tailLength != 0) {
-        lengthArray[i % qElements]++;
-        tailLength--;
-        i++;
-    }
-
-    return lengthArray;
-}
-
-void getIndexes(myIndex* indexArray, int width, int height, int threads) {
-    myPoint decomposition = getDecomposition(threads);
-    int* heightLength = getLength(height, decomposition.x);
-    int* widthLength = getLength(width, decomposition.y);
-
-    int currentHeight = 0;
-    for (int i = 0; i < decomposition.x; i++) {
-        int currentWidth = 0;
-        for (int j = 0; j < decomposition.y; j++) {
-            myPoint start, finish;
-            start.x = currentWidth;
-            start.y = currentHeight;
-
-            finish.x = currentWidth + widthLength[j];
-            finish.y = currentHeight + heightLength[i];
-
-            indexArray[i * decomposition.y + j].start = start;
-            indexArray[i * decomposition.y + j].finish = finish;
-
-            currentWidth += widthLength[j];
-        }
-        currentHeight += heightLength[i];
-    }
-
-    delete[]heightLength;
-    delete[]widthLength;
-}
-
-void ompProcessImage_block(myColor* sourceImage, myColor* resultImage,
-                           int width, int height, float* kernel,
-                           int kernelRadius, myIndex* indexArray) {
-#pragma omp parallel
-        {
-            int myid = omp_get_thread_num();
-            int startHeight = indexArray[myid].start.y;
-            int finishHeight = indexArray[myid].finish.y;
-            int startWidth = indexArray[myid].start.x;
-            int finishWidth = indexArray[myid].finish.x;
-
-            for (int i = startHeight; i < finishHeight; i++)
-                for (int j = startWidth; j < finishWidth; j++)
-                    resultImage[i * width + j] =
-                        calculateNewPixelColor(sourceImage, width, height,
-                                               kernel, kernelRadius, i, j);
-        }
 }
 
 // Serial version
@@ -226,4 +152,23 @@ void processImage(myColor* sourceImage, myColor* resultImage, int width,
             resultImage[i * width + j] =
             calculateNewPixelColor(sourceImage, width, height,
                 kernel, kernelRadius, i, j);
+}
+void tbbProcessImage(myColor* sourceImage, myColor* resultImage, int width,
+    int height, float* kernel, int kernelRadius, int threads) {
+    myPoint dec = getDecomposition(threads);
+    size_t grainsize1 = height / dec.x;
+    size_t grainsize2 = width / dec.y;
+
+    tbb::parallel_for(
+        tbb::blocked_range2d<int>(0, height, grainsize1, 0, width, grainsize2),
+        [&](tbb::blocked_range2d<int> &r) {
+        int i, j;
+        for (i = r.rows().begin(); i != r.rows().end(); ++i) {
+            for (j = r.cols().begin(); j != r.cols().end(); ++j) {
+                resultImage[i * width + j] =
+                    calculateNewPixelColor(sourceImage, width, height,
+                        kernel, kernelRadius, i, j);
+            }
+        }
+    });
 }
