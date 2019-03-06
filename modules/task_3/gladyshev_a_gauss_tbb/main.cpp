@@ -53,9 +53,12 @@ int main() {
     std::cout << height << ")";
     std::cout << std::endl << "Threads:                " << threads;
     std::cout << std::endl << "Kernel radius:          " << radius;
-    std::cout << std::endl << "Filtering time(serial): " << serialTotal * 1000 << " (ms)";
-    std::cout << std::endl << "Filtering time(tbb)   : " << tbbTotal * 1000 << " (ms)";
-    std::cout << std::endl << "Acceleration(tbb)     : " << serialTotal / tbbTotal << std::endl;
+    std::cout << std::endl << "Filtering time(serial): ";
+    std::cout << serialTotal * 1000 << " (ms)";
+    std::cout << std::endl << "Filtering time(tbb)   : ";
+    std::cout << tbbTotal * 1000 << " (ms)";
+    std::cout << std::endl << "Acceleration(tbb)     : ";
+    std::cout << serialTotal / tbbTotal << std::endl;
 
     delete[]sourceArrayImage;
     delete[]tbbResultArrayImage;
